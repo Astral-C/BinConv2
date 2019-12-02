@@ -30,7 +30,7 @@ import io
 class bStream():
 	def __init__(self, data=None, path=None, endian='>'):
 		self.isBuffered = False
-		if(data is None and path is not None):
+		if(path is not None):
 			try:
 				self.fhandle = open(path, 'r+b')
 			except:
@@ -152,6 +152,15 @@ class bStream():
 		nextAligned = (end+(32-1)) & ~(32-1)
 		delta = nextAligned - end
 		self.pad(delta)
+
+	@staticmethod
+	def padTo32Delta(end):
+		nextAligned = (end+(32-1)) & ~(32-1)
+		return (nextAligned - end)
+
+
+	def tell(self):
+		return self.fhandle.tell()
 
 	def close(self):
 		self.fhandle.close()

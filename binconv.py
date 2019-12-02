@@ -1,5 +1,9 @@
 #!venv/bin/python3
 import os, sys, getopt, tinyobjloader
+from scenegraph import GraphObject
+from materials import ShaderManager, TextureManager
+from geometry import BatchManager
+from bStream import *
 
 #Just commandline options garbo
 try:
@@ -9,7 +13,7 @@ except getopt.GetoptError:
     sys.exit(2)
 
 obj_pth = ''
-bin_pth = ''
+bin_pth = os.path.basename(obj_pth).replace('.obj','.bin')
 
 for opt, arg in opts:
     if(opt == '-h'):
@@ -18,8 +22,6 @@ for opt, arg in opts:
     elif(opt in ('-i', '--in')):
         obj_pth = arg
     elif(opt in ('-o', '--out')):
-        if(arg == ''):
-            bin_pth = os.path.basename(obj_pth).replace('.obj','.bin')
         bin_pth = arg
 
 obj = tinyobjloader.ObjReader()
@@ -35,7 +37,7 @@ if(obj.Warning()):
     print("Warning: ", obj.Warning())
 
 # Get all the verts, normals, and texcoords from the obj
-attribs = obj.GetAttrib()
+attrib = obj.GetAttrib()
 '''
 Materials and Shapes will directly translate to batches and materials in bin
 though doing a graph object per shape would be possible and might in the future be better
@@ -44,7 +46,70 @@ with multiple parts
 '''
 materials = obj.GetMaterials()
 shapes = obj.GetShapes()
+root = GraphObject(shapes)
+root.parts = [(x, shapes[x].mesh.material_ids[0]) for x in range(len(shapes))]
 
-for mat in materials:
-    print(mat.name)
-    print(mat.diffuse_texname)
+try:
+    batch_section = BatchManager(shapes)
+except ValueError as error:
+    print(error)
+
+shaders = ShaderManager(materials)
+offsets = [0 for x in range(21)]
+
+model = bStream(path=bin_pth)
+model.writeUInt8(0x02)
+model.writeString("NewBinModel")
+model.writeUInt32List(offsets)
+
+texture_section = TextureManager(shaders)
+
+# Write each section independently 
+position_section = bStream()
+normal_section = bStream()
+texcoord0_section = bStream()
+
+for vertex in attrib.vertices:
+    position_section.writeInt16(int(vertex))
+
+for normal in attrib.normals:
+    normal_section.writeFloat(normal)
+
+for coord in attrib.texcoords:
+    texcoord0_section.writeFloat(coord)
+
+position_section.seek(0)
+normal_section.seek(0)
+texcoord0_section.seek(0)
+
+offsets[0] = model.tell()
+texture_section.writeTextures(model)
+
+offsets[1] = model.tell()
+shaders.writeMaterials(model)
+
+offsets[2] = model.tell()
+model.write(position_section.read())
+position_section.close()
+
+offsets[3] = model.tell()
+model.write(normal_section.read())
+normal_section.close()
+
+offsets[6] = model.tell()
+model.write(texcoord0_section.read())
+texcoord0_section.close()
+
+offsets[10] = model.tell()
+shaders.writeShaders(model)
+
+offsets[11] = model.tell()
+batch_section.write(model)
+
+offsets[12] = model.tell()
+root.write(model, offsets[12])
+
+model.seek(0x0C)
+model.writeUInt32List(offsets)
+model.close()
+print("Conversion Completed")
