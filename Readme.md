@@ -13,4 +13,4 @@ Make sure that the model you are converting is split by material.
 `python binconv.py -i in.obj -o out.bin`
 
 ## Modified Bindings
-This converter requires slightly modified versions of python bindings for libsquish and tinyobjectobloader, as such the needed modifications are included under the bindings directory. Simply clone tinyobjloader and [this version of libsquish](https://github.com/tito/libsquish), replace the proper files, and build as normal.
+This converter requires slightly modified versions of python bindings for libsquish and tinyobjloader, as such the needed modifications are included under the bindings directory. Simply clone tinyobjloader and [this version of libsquish](https://github.com/tito/libsquish), replace the proper files, and build as normal.
