@@ -1,0 +1,7 @@
+Models/
+venv/
+.vscode/
+__pycache__/
+tinyobjloader/
+libsquish/
+cmprtest.py

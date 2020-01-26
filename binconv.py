@@ -75,8 +75,13 @@ for vertex in attrib.vertices:
 for normal in attrib.normals:
     normal_section.writeFloat(normal)
 
+c = 0
 for coord in attrib.texcoords:
-    texcoord0_section.writeFloat(coord)
+    if(c % 2 == 0):
+        texcoord0_section.writeFloat(coord)
+    else:    
+        texcoord0_section.writeFloat(-coord)
+    c += 1
 
 position_section.seek(0)
 normal_section.seek(0)
@@ -108,6 +113,7 @@ batch_section.write(model)
 
 offsets[12] = model.tell()
 root.write(model, offsets[12])
+model.padTo32(model.tell())
 
 model.seek(0x0C)
 model.writeUInt32List(offsets)

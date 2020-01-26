@@ -14,10 +14,11 @@ def CompressBlock(image, imageData, tile_x, tile_y, block_x, block_y):
                     mask |= (1 << index)
                     localIndex = 4 * index
                     pixel = imageData[(tile_x + block_x + x), (tile_y + block_y + y)]
-                    rgba[localIndex + 0] = pixel[0]
-                    rgba[localIndex + 1] = pixel[1]
-                    rgba[localIndex + 2] = pixel[2]
-                    rgba[localIndex + 3] = (pixel[3] if len(pixel) == 4 else 0xFF) #just in case alpha is not enabled
+                    if(type(pixel) != int):
+                        rgba[localIndex + 0] = pixel[0]
+                        rgba[localIndex + 1] = pixel[1]
+                        rgba[localIndex + 2] = pixel[2]
+                        rgba[localIndex + 3] = (pixel[3] if len(pixel) == 4 else 0xFF) #just in case alpha is not enabled
 
     return squish.compressMasked(bytes(rgba), mask, squish.DXT1)
 
