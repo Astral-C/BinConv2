@@ -1,2 +1,2 @@
-Pillow==6.2.1
+Pillow>=6.2.2
 pybind11==2.4.3
