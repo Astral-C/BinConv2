@@ -54,40 +54,77 @@ class Material():
         stream.pad(12)
 
 class Shader():
-    def __init__(self, material, index):
-        self.texture_path = material.diffuse_texname
-        # Generate tint color from the diffuse color
-        self.tint = 0xFFFFFFFF#(material.diffuse[0] << 24 | material.diffuse[1] << 16 | material.diffuse[2] << 8 | 0xFF)
-        self.material_index = index
+    def __init__(self, material, textures):
+        # Generate tint color from the diffuse color if it exists
+        
+        self.bump_index = -1
+        self.diffuse_index = -1
+        self.tint = 0xFFFFFFFF
+        
+        if(material.diffuse):
+            self.tint = (int(material.diffuse[0]*255) << 24 | int(material.diffuse[1]*255) << 16 | int(material.diffuse[2]*255) << 8 | 0xFF)
+        
+        if(material.bump_texname):
+            self.bump_index = textures.material_indices[material.bump_texname]
+        
+        if(material.diffuse_texname):
+            self.diffuse_index = textures.material_indices[material.diffuse_texname]
+        
+        print("Bump Map {0}, Diffuse Map {1}, Tint {2}".format(self.bump_index, self.diffuse_index, hex(self.tint)))
+
     def write(self, stream):
         stream.writeUInt8(1)
         stream.writeUInt8(1)
         stream.writeUInt8(1)
         stream.writeUInt32(self.tint)
         stream.pad(1)
-        stream.writeInt16(self.material_index)
-        for x in range(15):
+        stream.writeInt16(self.diffuse_index)
+        stream.writeInt16(self.bump_index)
+
+        #demolisher support
+        for x in range(6):
+            stream.writeInt16(-1)
+
+        stream.writeInt16(0)
+        for x in range(7):
             stream.writeInt16(-1)
 
 class ShaderManager():
-    def __init__(self, obj_materials):
-        self.materials = [Material(x) for x in range(len(obj_materials))]
-        self.shaders = [Shader(obj_materials[x], x) for x in range(len(obj_materials))]
-
-    def writeMaterials(self, stream):
-        for material in self.materials:
-            material.write(stream)
+    def __init__(self, materials, textures):
+        self.shaders = [Shader(material, textures) for material in materials]
 
     def writeShaders(self, stream):
         for shader in self.shaders:
             shader.write(stream)
 
 class TextureManager():
-    def __init__(self, shaders):
+    def __init__(self, materials):
         self.textures = []
-        for shader in shaders.shaders:
-            self.textures.append(ConvertTexture(shader.texture_path))
+        self.materials = []
+        self.material_indices = {}
+        texindex = 0
 
+        for material in materials:
+            if(material.diffuse_texname):
+                self.textures.append(ConvertTexture(material.diffuse_texname))
+                self.material_indices[material.diffuse_texname] = texindex
+                self.materials.append(Material(texindex))
+                texindex += 1
+            else:
+                self.materials.append(Material(texindex))
+                texindex += 1   
+
+            if(material.bump_texname):
+                self.textures.append(ConvertTexture(material.bump_texname))
+                self.material_indices[material.bump_texname] = texindex
+                self.materials.append(Material(texindex))
+                texindex += 1
+
+
+    def writeMaterials(self, stream):
+        for material in self.materials:
+            material.write(stream)
+            
     def writeTextures(self, stream):
         header_section = bStream()
         data_section = bStream()

@@ -49,20 +49,24 @@ shapes = obj.GetShapes()
 root = GraphObject(shapes)
 root.parts = [(x, shapes[x].mesh.material_ids[0]) for x in range(len(shapes))]
 
+
+nbt_data = []
+
 try:
-    batch_section = BatchManager(shapes)
+    batch_section = BatchManager(shapes, materials)
+    nbt_data = BatchManager.CalculateTangentSpace(shapes, materials, attrib)
 except ValueError as error:
     print(error)
 
-shaders = ShaderManager(materials)
+textures = TextureManager(materials)
+shaders = ShaderManager(materials, textures)
+
 offsets = [0 for x in range(21)]
 
 model = bStream(path=bin_pth)
 model.writeUInt8(0x02)
 model.writeString("NewBinModel")
 model.writeUInt32List(offsets)
-
-texture_section = TextureManager(shaders)
 
 # Write each section independently 
 position_section = bStream()
@@ -72,7 +76,7 @@ texcoord0_section = bStream()
 for vertex in attrib.vertices:
     position_section.writeInt16(int(vertex))
 
-for normal in attrib.normals:
+for normal in nbt_data:
     normal_section.writeFloat(normal)
 
 c = 0
@@ -88,10 +92,10 @@ normal_section.seek(0)
 texcoord0_section.seek(0)
 
 offsets[0] = model.tell()
-texture_section.writeTextures(model)
+textures.writeTextures(model)
 
 offsets[1] = model.tell()
-shaders.writeMaterials(model)
+textures.writeMaterials(model)
 
 offsets[2] = model.tell()
 model.write(position_section.read())
