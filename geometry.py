@@ -19,11 +19,11 @@ def GeneratePrimitives(mesh, buffer, nbt, start=0):
             buffer.writeUInt16(start + mesh.indices[(x*3) + idx].texcoord_index)
 
 class BatchManager():
-    def __init__(self, shapes, materials):
+    def __init__(self, shapes, materials, use_bump):
         total = 0
         self.batches = []
         for shape in shapes:
-            self.batches.append(Batch(shape, total, materials[shape.mesh.material_ids[0]].bump_texname is not None))
+            self.batches.append(Batch(shape, total, (materials[shape.mesh.material_ids[0]].bump_texname is not None) and use_bump))
             total += len(shape.mesh.indices)
 
     @staticmethod
@@ -40,8 +40,8 @@ class BatchManager():
                     #Disgusting
                     #Get triangle indices
                     tr0 = mesh.indices[(x*3)]
-                    tr1 = mesh.indices[(x*3)+1]
-                    tr2 = mesh.indices[(x*3)+2]
+                    tr2 = mesh.indices[(x*3)+1]
+                    tr1 = mesh.indices[(x*3)+2]
 
                     p0 = np.array(attrib.vertices[tr0.vertex_index : tr0.vertex_index + 3])
                     p1 = np.array(attrib.vertices[tr1.vertex_index : tr1.vertex_index + 3])
@@ -77,9 +77,9 @@ class BatchManager():
 
                     print(tangent)
 
-                    lt0 = tangent - n0 * (tangent * n0)
-                    lt1 = tangent - n1 * (tangent * n1)
-                    lt2 = tangent - n2 * (tangent * n2)
+                    lt0 = tangent + n0 * (tangent * n0)
+                    lt1 = tangent + n1 * (tangent * n1)
+                    lt2 = tangent + n2 * (tangent * n2)
 
                     binorm0 = np.cross(n0, lt0) 
                     binorm1 = np.cross(n1, lt1)
@@ -104,7 +104,7 @@ class BatchManager():
                     nbt_data.extend(binormals[idx.normal_index : idx.normal_index + 3])
                     nbt_data.extend(tangents[idx.normal_index : idx.normal_index + 3])
             else:
-                nbt_data.extend(attrib.normals[idx.normal_index : idx.normal_index + 2])
+                nbt_data.extend(attrib.normals[idx.normal_index : idx.normal_index + 3])
 
         return nbt_data
 
@@ -113,7 +113,11 @@ class BatchManager():
     def write(self, stream):
         batch_headers = bStream()
         primitive_buffer = bStream()
-        primitives_start = (0x18 * len(self.batches))
+        
+        batch_headers.pad((0x18 * len(self.batches)))
+        batch_headers.padTo32(batch_headers.tell())
+        primitives_start = batch_headers.tell()
+        batch_headers.seek(0)
 
         for batch in self.batches:
             list_start = primitive_buffer.tell()
@@ -154,7 +158,6 @@ class Batch():
         stream.writeUInt8(1 if self.useNBT else 0) # Use NBT
         stream.writeUInt32(offset)
         stream.pad(8)
-        #stream.padTo32()
 
     def __del__(self):
         if(self.primitives is not None):
